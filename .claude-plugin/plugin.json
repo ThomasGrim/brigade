@@ -1,0 +1,42 @@
+{
+  "name": "brigade",
+  "version": "0.1.0",
+  "description": "A kitchen brigade for Claude Code: a fast decider (Haiku) picks the model, effort and working mode of each request, quality first and savings after, and a live pane shows the lead, the advisor, the subagents, the quota and the history.",
+  "author": {
+    "name": "ThomasGrim",
+    "url": "https://github.com/ThomasGrim"
+  },
+  "homepage": "https://github.com/ThomasGrim/brigade",
+  "repository": "https://github.com/ThomasGrim/brigade",
+  "license": "MIT",
+  "keywords": ["claude-code", "advisor", "router", "subagents", "model-routing", "dashboard"],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "routing": {
+      "type": "string",
+      "title": "Request routing",
+      "description": "on: before each request, a fast model (jev) picks the effort, the model (Sonnet or Opus, never lower than the session's) and the working mode, and the lead is told when to consult the advisor or delegate. off: the pane only observes the session and changes nothing.",
+      "default": "on",
+      "options": ["on", "off"]
+    },
+    "jevModel": {
+      "type": "string",
+      "title": "Decider model",
+      "description": "The model that answers the router's questions: an alias (haiku) or a full model id. It runs on your own login, a few hundred tokens per question.",
+      "default": "haiku"
+    },
+    "panel": {
+      "type": "string",
+      "title": "Pane",
+      "description": "auto opens the Brigade pane when a session starts (it needs a wide terminal, 144 columns or more, to seat by itself); command opens it only when you type /brigade.",
+      "default": "auto",
+      "options": ["auto", "command"]
+    },
+    "retryConsult": {
+      "type": "boolean",
+      "title": "Retry-or-stop check",
+      "description": "When a command fails twice in a row, ask the decider whether to retry or stop. The answer is shown in the pane only; it never reaches the conversation.",
+      "default": true
+    }
+  }
+}

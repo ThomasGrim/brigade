@@ -1,0 +1,12 @@
+{
+  "name": "brigade",
+  "description": "Plugins for Claude Code by ThomasGrim.",
+  "owner": { "name": "ThomasGrim", "url": "https://github.com/ThomasGrim" },
+  "plugins": [
+    {
+      "name": "brigade",
+      "source": "./",
+      "description": "A fast decider picks the model, effort and working mode of each request (quality first, savings after) and a live pane shows the lead, the advisor, the subagents, the quota and the history."
+    }
+  ]
+}
