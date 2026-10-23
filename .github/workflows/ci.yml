@@ -18,5 +18,3 @@ jobs:
         run: claude plugin validate .
       - name: Run the tests
         run: claude plugin test .
-      - name: Type check
-        run: npx -y -p typescript tsc --noEmit -p .

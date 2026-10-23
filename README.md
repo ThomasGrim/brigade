@@ -146,7 +146,7 @@ hooks/register.tsx                the plugin: router, pane, history
 hooks/jev.ts                      jev's prompt
 hooks/register.test.ts            tests
 docs/                             screenshots
-.github/workflows/ci.yml          type check on every push
+.github/workflows/ci.yml          validate and test on every push
 CHANGELOG.md                      release notes
 types/index.d.ts                  the plugin's saved-state contract
 ```
