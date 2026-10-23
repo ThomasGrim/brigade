@@ -35,8 +35,8 @@
     "retryConsult": {
       "type": "boolean",
       "title": "Retry-or-stop check",
-      "description": "When a command fails twice in a row, ask the decider whether to retry or stop. The answer is shown in the pane only; it never reaches the conversation.",
-      "default": true
+      "description": "When a command fails twice in a row, ask the decider whether to retry or stop. The answer is shown in the pane only; it never reaches the conversation. Sends the start of the command and up to 600 characters of the error to the decider model.",
+      "default": false
     }
   }
 }

@@ -70,18 +70,18 @@ Set when you install, or later in `/config`.
 | `routing` | `on` | `on`: jev picks effort, model and working mode for each request. `off`: the pane only observes and changes nothing. |
 | `jevModel` | `haiku` | The model that answers the router's questions: an alias or a full model id. |
 | `panel` | `auto` | `auto` opens the pane when a session starts; `command` opens it only on `/brigade`. |
-| `retryConsult` | `true` | When a command fails twice in a row, ask jev "retry or stop?". The answer shows in the pane only. |
+| `retryConsult` | `false` | When a command fails twice in a row, ask jev "retry or stop?". The answer shows in the pane only. Off by default: it sends part of the error to jev (see [Privacy](#privacy)). |
 
 ## How the router decides
 
-Quality first: going up takes little certainty, staying low takes more.
+Quality first: going up takes little certainty, staying low takes more. Each "confidence" below is jev's confidence in its own choice, from 0 to 1 (for example, jev answers `opus` with 0.4: that is enough to switch to Opus).
 
 | Decision | Rule |
 | --- | --- |
 | Model | `opus` is chosen from a confidence of **0.30**. Staying on Sonnet needs **0.60**. |
 | Model, within a session | **Never goes down.** Each model has its own prompt cache, so a switch re-reads the whole conversation at full price. The tier resets when a new session starts, after a compaction, or after about an hour of idle time (when the cache is cold anyway). |
 | Effort | Applied freely on every request: on Sonnet 5.5 and Opus 5.5 a change of effort keeps the cache. |
-| Working mode | `team` needs **0.70** (it costs several contexts), `delegate` needs **0.50**. Otherwise `solo`. |
+| Working mode | `team` needs **0.70** (it costs several contexts), `delegate` needs **0.50**. A `team` answered between 0.50 and 0.69 becomes `delegate`. Otherwise `solo`. |
 | jev is unsure | The model stays as it is, the effort goes up one step, and the lead is asked to consult the advisor before it starts. |
 | jev gives no answer in time (3 s) | Nothing changes. |
 | You say otherwise | `#max` (Opus, max effort), `#fast` (Sonnet, low effort, solo), `#opus` or `#sonnet`, as the **first or last word** of your request. |
@@ -119,6 +119,8 @@ The quota block shows what is left of each subscription window (5-hour, 7-day) a
 ## Privacy
 
 - jev reads the request you submit (the first 1,500 characters), plus the size of your conversation, to answer its questions. It runs on **your own Claude login**, through your normal Claude Code session; nothing is sent to any other service.
+- Only if you turn `retryConsult` on: when a command fails twice in a row, jev also receives the start of the command (about 40 characters) and up to 600 characters of the error message, at most 20 times per session. An error message can contain file paths or secrets, which is why this is off by default.
+- The notes jev gives the lead mention subagents generically (a read-only one for searches, one per edit); the lead picks among the subagent types your session actually has.
 - The history is stored locally by Claude Code, in the plugin's own storage on your machine. It keeps at most 500 decisions, 300 advisor consults and 300 subagent runs, and for each decision only the **first 70 characters** of your request. It is never uploaded by this plugin.
 
 ## Development
@@ -144,6 +146,8 @@ hooks/register.tsx                the plugin: router, pane, history
 hooks/jev.ts                      jev's prompt
 hooks/register.test.ts            tests
 docs/                             screenshots
+.github/workflows/ci.yml          type check on every push
+CHANGELOG.md                      release notes
 types/index.d.ts                  the plugin's saved-state contract
 ```
 

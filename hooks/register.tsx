@@ -49,17 +49,14 @@ const TICK_MS = 500
 const PAUSE_MS = 2500
 // a checkpoint that just fired stays highlighted this long
 const FLASH_MS = 10_000
-// same threshold as the CLAUDE.md rule: below it the lead decides itself
+// jev's confidence below this counts as unsure: the router does not trust the answer alone
 const SHARP = 0.6
 // passive jev consults per session, so a failing loop cannot drain the quota
 const MAX_AUTO = 20
 const QUOTA_LABEL: Record<string, string> = { five_hour: '5h', seven_day: '7d', spend_limit: '$' }
 
-// two fixed slots for this machine's agents; the third shows whichever other subagent ran last
-const SLOTS = [
-  { type: 'scanner', role: 'read-only scan' },
-  { type: 'editor', role: 'edits in a worktree' },
-] as const
+// subagent lines shown at once in the pane
+const MAX_SUB_LINES = 4
 // these agents are deciders: they feed the fork layer, not the subagent cards
 const FORK_TYPES = new Set(['jev'])
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit'])
@@ -78,14 +75,14 @@ export type Config = {
   /** Ask jev "retry or stop?" when a command fails twice in a row (shown in the pane only). */
   retryConsult: boolean
 }
-export const DEFAULT_CONFIG: Config = { jevModel: 'haiku', routing: 'on', panel: 'auto', retryConsult: true }
+export const DEFAULT_CONFIG: Config = { jevModel: 'haiku', routing: 'on', panel: 'auto', retryConsult: false }
 
 export const readConfig = (options: Readonly<Record<string, unknown>>): Config => ({
   jevModel:
     typeof options.jevModel === 'string' && options.jevModel.trim() !== '' ? options.jevModel.trim() : DEFAULT_CONFIG.jevModel,
   routing: options.routing === 'off' ? 'off' : 'on',
   panel: options.panel === 'command' ? 'command' : 'auto',
-  retryConsult: options.retryConsult !== false,
+  retryConsult: options.retryConsult === true,
 })
 
 // set once when the module loads: the helpers below read it
@@ -447,12 +444,12 @@ export const hintFor = (decided: Route): string | undefined => {
   }
   if (decided.mode === 'delegate') {
     lines.push(
-      'Part of this request is better done by a subagent than in the main conversation: scanner for a wide read-only search, editor for an isolated edit.',
+      'Part of this request is better done by a subagent than in the main conversation: one for a wide read-only search, one for an isolated edit. Use the subagent types available in this session.',
     )
   }
   if (decided.mode === 'team') {
     lines.push(
-      'This looks like a large task that splits into independent parts. Act as the architect: plan it, consult the advisor on the plan, split the work into parallel subtasks for subagents (scanner for read-only scans, one editor per edit in its own worktree), then review and verify the results yourself.',
+      'This looks like a large task that splits into independent parts. Act as the architect: plan it, consult the advisor on the plan, split the work into parallel subtasks for subagents (read-only subagents for scans, one subagent per edit, ideally in its own worktree, using the subagent types available in this session), then review and verify the results yourself.',
     )
   }
 
@@ -797,6 +794,8 @@ export const register: Register = (on, options) => {
       const request = e.text.trim()
       if (config.routing !== 'on' || request === '' || request.startsWith('/') || !ROUTED_ORIGINS.has(e.origin.kind)) return
       const at = await $.clock.now()
+      // the pane's clock follows the host's, so the history window is measured on the same clock as its records
+      await update($, now, () => at)
       const before = await read($, router)
       const isCold = before.lastActiveAt !== undefined && at - before.lastActiveAt > COLD_MS
       const decision = await decide($, request, isCold ? { ...before, tier: 'sonnet' } : before)
@@ -1189,20 +1188,16 @@ export const register: Register = (on, options) => {
       )
     }
 
-    // the two fixed slots keep their line; any other agent, or a second one of a slot's type
-    // running in parallel, gets a line of its own below, the running ones first
-    const slotted = SLOTS.map(slot => ({ slot, card: cards.filter(one => one.type === slot.type).at(-1) }))
-    const shownIds = new Set(slotted.flatMap(({ card }) => (card === undefined ? [] : [card.id])))
-    const extras = cards
-      .filter(card => !shownIds.has(card.id))
+    // the latest subagents, whatever their type, the running ones first; one idle line before any ran
+    const recent = cards
       .slice(-8)
       .reverse()
       .sort((a, b) => Number(b.status === 'running') - Number(a.status === 'running'))
-      .slice(0, 3)
-    const subLines = [
-      ...slotted.map(({ slot, card }) => subLine(card?.id ?? slot.type, slot.type, slot.role, card)),
-      ...extras.map(card => subLine(card.id, card.type, '', card)),
-    ]
+      .slice(0, MAX_SUB_LINES)
+    const subLines =
+      recent.length === 0
+        ? [subLine('none', 'none yet', 'subagents the lead launches show here', undefined)]
+        : recent.map(card => subLine(card.id, card.type, '', card))
     const planned = rt.last?.route.mode
     const runningModels = [...new Set(running.map(card => shortModel(card.model)))].join(' + ')
     const subBox = (
@@ -1231,7 +1226,7 @@ export const register: Register = (on, options) => {
       </Box>
     )
 
-    // ── advisor column: the three moments of the CLAUDE.md rule, lit as they happen ──
+    // ── advisor column: the three moments an advisor consult usually answers (before a plan, a repeated error, before done), lit as they happen ──
     const lastCall = adv.recent.at(-1)
     const lastOf = (checkpoint: Checkpoint) => [...adv.recent].reverse().find(call => call.checkpoint === checkpoint)
     const isFresh = (call: AdvisorCall | undefined) => call !== undefined && at - call.at < FLASH_MS

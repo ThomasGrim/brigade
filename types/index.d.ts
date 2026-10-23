@@ -31,7 +31,7 @@ export type AgentCard = {
   tool?: string
 }
 
-/** The moment an advisor call answers: the three of the CLAUDE.md rule, or none of them. */
+/** The moment an advisor call answers: before a plan, after a repeated error, before done, or none of them. */
 export type Checkpoint = 'plan' | 'error' | 'done' | 'mid'
 
 export type AdvisorCall = {
